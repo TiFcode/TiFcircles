@@ -313,7 +313,7 @@
       <div class="stats">
         <div class="pill"><span id="levelValue">1</span><small>Level</small></div>
         <div class="pill"><span id="scoreValue">0</span><small>Score</small></div>
-        <div class="pill"><span id="livesValue">❤️❤️❤️</span><small>Lives</small></div>
+        <div class="pill"><span id="mistakesValue">0</span><small>Mistakes</small></div>
       </div>
       <div class="controls">
         <button id="restartBtn" class="primary">🔄 Restart</button>
@@ -337,7 +337,7 @@
   const board = document.getElementById('board');
   const levelValue = document.getElementById('levelValue');
   const scoreValue = document.getElementById('scoreValue');
-  const livesValue = document.getElementById('livesValue');
+  const mistakesValue = document.getElementById('mistakesValue');
   const messageEl = document.getElementById('message');
   const submessageEl = document.getElementById('submessage');
   const flashEl = document.getElementById('flash');
@@ -361,7 +361,7 @@
 
   let level = 1;
   let score = 0;
-  let lives = MAX_LIVES;
+  let mistakes = 0;
   let discs = [];
   let rafId = null;
   let boardRect = null;
@@ -380,7 +380,7 @@
   function updateStats() {
     levelValue.textContent = String(level);
     scoreValue.textContent = String(score);
-    livesValue.textContent = '❤️'.repeat(lives) + '🖤'.repeat(MAX_LIVES - lives);
+    mistakesValue.textContent = String(mistakes);
   }
 
   function setMessage(main, sub) {
@@ -583,38 +583,23 @@
         );
       }
     } else {
-      lives = Math.max(0, lives - 1);
+      mistakes += 1;
       updateStats();
       disc.el.classList.remove('wrong');
       void disc.el.offsetWidth;
       disc.el.classList.add('wrong');
       showFlash('Oops!', '#fb7185');
-
-      if (lives === 0) {
-        endGame();
-      } else {
-        setMessage(
-          `Not that one — tap the biggest circle.`,
-          `${lives} ${lives === 1 ? 'life' : 'lives'} left.`
-        );
-      }
+      setMessage(
+        `Not that one — tap the biggest circle.`,
+        `Mistakes so far: ${mistakes}. Keep going.`
+      );
     }
-  }
-
-  function endGame() {
-    gameOver = true;
-    if (rafId) cancelAnimationFrame(rafId);
-    showFlash('Game Over', '#fb7185');
-    setMessage(
-      `Game over at level ${level}.`,
-      `Score: ${score}. Tap restart to try again.`
-    );
   }
 
   function restartGame() {
     level = 1;
     score = 0;
-    lives = MAX_LIVES;
+    mistakes = 0;
     gameOver = false;
     levelLocked = false;
     launchLevel();
