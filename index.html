@@ -436,49 +436,44 @@
     discs = [];
   }
 
-  function findNonOverlappingPosition(radius, placedDiscs) {
-    const padding = radius + 26;
-    const maxX = boardRect.width - padding;
-    const maxY = boardRect.height - padding - 70;
-    const minX = padding;
-    const minY = padding;
-    const gap = 20;
+  function getMaxScaleForLevel(currentLevel) {
+    return BASE_MAX + currentLevel * 0.015;
+  }
 
-    for (let attempt = 0; attempt < 300; attempt++) {
-      const x = randomBetween(minX, maxX);
-      const y = randomBetween(minY, maxY);
-      let overlaps = false;
+  function buildLevelLayout(total, maxVisualRadius) {
+    const usableWidth = boardRect.width;
+    const usableHeight = boardRect.height - 90;
+    const gap = 26;
 
-      for (const other of placedDiscs) {
-        const dx = x - other.x;
-        const dy = y - other.y;
-        const minDist = radius + other.radius + gap;
-        if (Math.hypot(dx, dy) < minDist) {
-          overlaps = true;
-          break;
-        }
+    for (let cols = 2; cols <= total; cols++) {
+      const rows = Math.ceil(total / cols);
+      const cellW = usableWidth / cols;
+      const cellH = usableHeight / rows;
+      if (cellW >= maxVisualRadius * 2 + gap && cellH >= maxVisualRadius * 2 + gap) {
+        return { cols, rows, cellW, cellH, gap };
       }
-
-      if (!overlaps) return { x, y };
     }
 
-    const cols = Math.max(2, Math.ceil(Math.sqrt(placedDiscs.length + 1)));
-    const rows = Math.max(2, Math.ceil((placedDiscs.length + 1) / cols));
-    const cellW = boardRect.width / (cols + 1);
-    const cellH = (boardRect.height - 90) / (rows + 1);
-    const slot = placedDiscs.length;
-    const col = slot % cols;
-    const row = Math.floor(slot / cols);
     return {
-      x: clamp(cellW * (col + 1.2), minX, maxX),
-      y: clamp(cellH * (row + 1.2), minY, maxY)
+      cols: Math.ceil(Math.sqrt(total)),
+      rows: Math.ceil(total / Math.ceil(Math.sqrt(total))),
+      cellW: usableWidth / Math.ceil(Math.sqrt(total)),
+      cellH: usableHeight / Math.ceil(total / Math.ceil(Math.sqrt(total))),
+      gap,
     };
   }
 
-  function makeDisc(index, total) {
+  function makeDisc(index, total, layout, maxScale) {
     const baseSize = Math.min(boardRect.width, boardRect.height) * 0.18;
     const radius = clamp(baseSize - total * 2 + index * 1.5, 44, 110);
-    const { x, y } = findNonOverlappingPosition(radius, discs.filter(d => !d.removed));
+    const row = Math.floor(index / layout.cols);
+    const col = index % layout.cols;
+    const offsetX = row % 2 === 0 ? 0.5 : 0.35;
+    const centerX = layout.cellW * (col + offsetX);
+    const centerY = layout.cellH * (row + 0.5) + 8;
+    const maxVisualRadius = radius * maxScale;
+    const x = clamp(centerX, maxVisualRadius + 16, boardRect.width - maxVisualRadius - 16);
+    const y = clamp(centerY, maxVisualRadius + 16, boardRect.height - maxVisualRadius - 86);
     const [c1, c2] = DISC_COLORS[index % DISC_COLORS.length];
 
     const el = document.createElement('button');
@@ -493,15 +488,16 @@
     el.textContent = '';
     board.appendChild(el);
 
+    const safeBaseMax = Math.max(BASE_MIN + 0.04, maxScale - 0.08);
     const disc = {
       id: `${level}-${index}-${Date.now()}`,
       el,
       x,
       y,
       radius,
-      baseScale: randomBetween(0.72, 1.02),
-      amplitude: randomBetween(0.18, 0.28),
-      speed: randomBetween(0.0022, 0.0042) + level * 0.0002,
+      baseScale: randomBetween(0.72, Math.min(0.94, safeBaseMax)),
+      amplitude: randomBetween(0.12, 0.18),
+      speed: randomBetween(0.0016, 0.003) + level * 0.00012,
       phase: Math.random() * Math.PI * 2,
       currentScale: 1,
       removed: false,
@@ -517,8 +513,10 @@
     clearBoard();
     boardRect = board.getBoundingClientRect();
     const count = getDiscCountForLevel(level);
+    const maxScale = getMaxScaleForLevel(level);
+    const layout = buildLevelLayout(count, 110 * maxScale);
     for (let i = 0; i < count; i++) {
-      discs.push(makeDisc(i, count));
+      discs.push(makeDisc(i, count, layout, maxScale));
     }
     updateStats();
     setMessage(
