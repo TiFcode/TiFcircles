@@ -438,6 +438,43 @@
     return BASE_MAX + currentLevel * 0.015;
   }
 
+  function relaxPackedPositions(positions, radius, maxScale) {
+    const maxVisualRadius = radius * maxScale;
+    const minX = maxVisualRadius + 10;
+    const maxX = boardRect.width - maxVisualRadius - 10;
+    const minY = maxVisualRadius + 10;
+    const maxY = boardRect.height - maxVisualRadius - 80;
+    const minDist = maxVisualRadius * 2 + 0.2;
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+
+    for (let pass = 0; pass < 140; pass++) {
+      for (let i = 0; i < positions.length; i++) {
+        const point = positions[i];
+        let nextX = point.x + (centerX - point.x) * 0.045;
+        let nextY = point.y + (centerY - point.y) * 0.045;
+
+        for (let j = 0; j < positions.length; j++) {
+          if (i === j) continue;
+          const other = positions[j];
+          const dx = nextX - other.x;
+          const dy = nextY - other.y;
+          const dist = Math.hypot(dx, dy) || 0.0001;
+          if (dist < minDist) {
+            const push = (minDist - dist) / 2;
+            nextX += (dx / dist) * push;
+            nextY += (dy / dist) * push;
+          }
+        }
+
+        point.x = clamp(nextX, minX, maxX);
+        point.y = clamp(nextY, minY, maxY);
+      }
+    }
+
+    return positions;
+  }
+
   function canPlaceDiscs(total, radius, maxScale) {
     const placed = [];
     const maxVisualRadius = radius * maxScale;
@@ -446,14 +483,17 @@
     const minY = maxVisualRadius + 10;
     const maxY = boardRect.height - maxVisualRadius - 80;
     const minDist = maxVisualRadius * 2 + 0.2;
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
 
     if (minX > maxX || minY > maxY) return null;
 
     for (let i = 0; i < total; i++) {
       let placedPoint = null;
-      for (let attempt = 0; attempt < 1200; attempt++) {
-        const x = randomBetween(minX, maxX);
-        const y = randomBetween(minY, maxY);
+      for (let attempt = 0; attempt < 1800; attempt++) {
+        const spread = Math.max(18, Math.min(maxX - minX, maxY - minY) * 0.35);
+        const x = clamp(centerX + (Math.random() - 0.5) * spread * 2 + (Math.random() - 0.5) * spread * 0.6, minX, maxX);
+        const y = clamp(centerY + (Math.random() - 0.5) * spread * 2 + (Math.random() - 0.5) * spread * 0.6, minY, maxY);
         let overlaps = false;
         for (const other of placed) {
           if (Math.hypot(x - other.x, y - other.y) < minDist) {
@@ -470,7 +510,7 @@
       placed.push(placedPoint);
     }
 
-    return placed;
+    return relaxPackedPositions(placed, radius, maxScale);
   }
 
   function buildLevelLayout(total, maxScale) {
@@ -481,10 +521,17 @@
 
     while (low <= high) {
       const mid = Math.floor((low + high) / 2);
-      const positions = canPlaceDiscs(total, mid, maxScale);
-      if (positions) {
+      let bestForRadius = null;
+      for (let attempt = 0; attempt < 12; attempt++) {
+        const positions = canPlaceDiscs(total, mid, maxScale);
+        if (positions) {
+          bestForRadius = positions;
+          break;
+        }
+      }
+      if (bestForRadius) {
         bestRadius = mid;
-        bestPositions = positions;
+        bestPositions = bestForRadius;
         low = mid + 1;
       } else {
         high = mid - 1;
