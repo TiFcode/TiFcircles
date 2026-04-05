@@ -438,40 +438,48 @@
     return BASE_MAX + currentLevel * 0.015;
   }
 
-  function buildLevelLayout(total, maxVisualRadius) {
-    const usableWidth = boardRect.width;
-    const usableHeight = boardRect.height - 90;
-    const gap = 26;
+  function buildLevelLayout(total, maxScale) {
+    const usableWidth = boardRect.width - 32;
+    const usableHeight = boardRect.height - 122;
+    const gap = 28;
 
+    let best = null;
     for (let cols = 2; cols <= total; cols++) {
       const rows = Math.ceil(total / cols);
       const cellW = usableWidth / cols;
       const cellH = usableHeight / rows;
-      if (cellW >= maxVisualRadius * 2 + gap && cellH >= maxVisualRadius * 2 + gap) {
-        return { cols, rows, cellW, cellH, gap };
+      const radiusFromCell = Math.floor((Math.min(cellW, cellH) - gap) / (2 * maxScale));
+      if (radiusFromCell < 24) continue;
+      if (!best || radiusFromCell > best.radius) {
+        best = { cols, rows, cellW, cellH, gap, radius: radiusFromCell };
       }
     }
 
+    if (best) return best;
+
+    const cols = Math.ceil(Math.sqrt(total));
+    const rows = Math.ceil(total / cols);
+    const cellW = usableWidth / cols;
+    const cellH = usableHeight / rows;
     return {
-      cols: Math.ceil(Math.sqrt(total)),
-      rows: Math.ceil(total / Math.ceil(Math.sqrt(total))),
-      cellW: usableWidth / Math.ceil(Math.sqrt(total)),
-      cellH: usableHeight / Math.ceil(total / Math.ceil(Math.sqrt(total))),
+      cols,
+      rows,
+      cellW,
+      cellH,
       gap,
+      radius: Math.max(20, Math.floor((Math.min(cellW, cellH) - gap) / (2 * maxScale)))
     };
   }
 
   function makeDisc(index, total, layout, maxScale) {
-    const baseSize = Math.min(boardRect.width, boardRect.height) * 0.18;
-    const radius = clamp(baseSize - total * 2 + index * 1.5, 44, 110);
+    const radius = clamp(layout.radius, 20, 110);
     const row = Math.floor(index / layout.cols);
     const col = index % layout.cols;
-    const offsetX = row % 2 === 0 ? 0.5 : 0.35;
-    const centerX = layout.cellW * (col + offsetX);
-    const centerY = layout.cellH * (row + 0.5) + 8;
+    const centerX = 16 + layout.cellW * col + layout.cellW / 2;
+    const centerY = 16 + layout.cellH * row + layout.cellH / 2;
     const maxVisualRadius = radius * maxScale;
-    const x = clamp(centerX, maxVisualRadius + 16, boardRect.width - maxVisualRadius - 16);
-    const y = clamp(centerY, maxVisualRadius + 16, boardRect.height - maxVisualRadius - 86);
+    const x = clamp(centerX, maxVisualRadius + 10, boardRect.width - maxVisualRadius - 10);
+    const y = clamp(centerY, maxVisualRadius + 10, boardRect.height - maxVisualRadius - 80);
     const [c1, c2] = DISC_COLORS[index % DISC_COLORS.length];
 
     const el = document.createElement('button');
@@ -512,7 +520,7 @@
     boardRect = board.getBoundingClientRect();
     const count = getDiscCountForLevel(level);
     const maxScale = getMaxScaleForLevel(level);
-    const layout = buildLevelLayout(count, 110 * maxScale);
+    const layout = buildLevelLayout(count, maxScale);
     for (let i = 0; i < count; i++) {
       discs.push(makeDisc(i, count, layout, maxScale));
     }
