@@ -438,48 +438,75 @@
     return BASE_MAX + currentLevel * 0.015;
   }
 
-  function buildLevelLayout(total, maxScale) {
-    const usableWidth = boardRect.width - 32;
-    const usableHeight = boardRect.height - 122;
-    const gap = 28;
+  function canPlaceDiscs(total, radius, maxScale) {
+    const placed = [];
+    const maxVisualRadius = radius * maxScale;
+    const minX = maxVisualRadius + 10;
+    const maxX = boardRect.width - maxVisualRadius - 10;
+    const minY = maxVisualRadius + 10;
+    const maxY = boardRect.height - maxVisualRadius - 80;
+    const minDist = maxVisualRadius * 2 + 10;
 
-    let best = null;
-    for (let cols = 2; cols <= total; cols++) {
-      const rows = Math.ceil(total / cols);
-      const cellW = usableWidth / cols;
-      const cellH = usableHeight / rows;
-      const radiusFromCell = Math.floor((Math.min(cellW, cellH) - gap) / (2 * maxScale));
-      if (radiusFromCell < 24) continue;
-      if (!best || radiusFromCell > best.radius) {
-        best = { cols, rows, cellW, cellH, gap, radius: radiusFromCell };
+    if (minX > maxX || minY > maxY) return null;
+
+    for (let i = 0; i < total; i++) {
+      let placedPoint = null;
+      for (let attempt = 0; attempt < 1200; attempt++) {
+        const x = randomBetween(minX, maxX);
+        const y = randomBetween(minY, maxY);
+        let overlaps = false;
+        for (const other of placed) {
+          if (Math.hypot(x - other.x, y - other.y) < minDist) {
+            overlaps = true;
+            break;
+          }
+        }
+        if (!overlaps) {
+          placedPoint = { x, y };
+          break;
+        }
+      }
+      if (!placedPoint) return null;
+      placed.push(placedPoint);
+    }
+
+    return placed;
+  }
+
+  function buildLevelLayout(total, maxScale) {
+    let low = 20;
+    let high = 110;
+    let bestRadius = 20;
+    let bestPositions = null;
+
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2);
+      const positions = canPlaceDiscs(total, mid, maxScale);
+      if (positions) {
+        bestRadius = mid;
+        bestPositions = positions;
+        low = mid + 1;
+      } else {
+        high = mid - 1;
       }
     }
 
-    if (best) return best;
+    if (!bestPositions) {
+      bestRadius = 20;
+      bestPositions = canPlaceDiscs(total, bestRadius, maxScale) || [];
+    }
 
-    const cols = Math.ceil(Math.sqrt(total));
-    const rows = Math.ceil(total / cols);
-    const cellW = usableWidth / cols;
-    const cellH = usableHeight / rows;
     return {
-      cols,
-      rows,
-      cellW,
-      cellH,
-      gap,
-      radius: Math.max(20, Math.floor((Math.min(cellW, cellH) - gap) / (2 * maxScale)))
+      radius: bestRadius,
+      positions: bestPositions
     };
   }
 
   function makeDisc(index, total, layout, maxScale) {
     const radius = clamp(layout.radius, 20, 110);
-    const row = Math.floor(index / layout.cols);
-    const col = index % layout.cols;
-    const centerX = 16 + layout.cellW * col + layout.cellW / 2;
-    const centerY = 16 + layout.cellH * row + layout.cellH / 2;
-    const maxVisualRadius = radius * maxScale;
-    const x = clamp(centerX, maxVisualRadius + 10, boardRect.width - maxVisualRadius - 10);
-    const y = clamp(centerY, maxVisualRadius + 10, boardRect.height - maxVisualRadius - 80);
+    const pos = layout.positions[index];
+    const x = pos.x;
+    const y = pos.y;
     const [c1, c2] = DISC_COLORS[index % DISC_COLORS.length];
 
     const el = document.createElement('button');
