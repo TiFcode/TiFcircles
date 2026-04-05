@@ -189,12 +189,10 @@
   }
 
   .disc.highlight {
-    filter: brightness(1.15);
     box-shadow:
-      inset -14px -18px 24px rgba(0,0,0,0.12),
-      inset 10px 10px 24px rgba(255,255,255,0.2),
-      0 0 0 6px rgba(255,255,255,0.08),
-      0 18px 42px rgba(0,0,0,0.32);
+      inset -14px -18px 24px rgba(0,0,0,0.16),
+      inset 10px 10px 24px rgba(255,255,255,0.18),
+      0 18px 40px rgba(0,0,0,0.28);
   }
 
   .disc.popped {
@@ -536,7 +534,7 @@
       disc.currentScale = clamp(disc.baseScale + wave * disc.amplitude, BASE_MIN, BASE_MAX + level * 0.015);
       disc.el.style.setProperty('--disc-scale', disc.currentScale.toFixed(4));
       disc.el.style.transform = `translate(-50%, -50%) scale(${disc.currentScale})`;
-      disc.el.classList.toggle('highlight', biggest && biggest.id === disc.id);
+      disc.el.classList.toggle('highlight', false);
       disc.el.style.zIndex = String(Math.round(disc.currentScale * 100));
     }
 
