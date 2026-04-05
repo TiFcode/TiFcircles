@@ -436,13 +436,49 @@
     discs = [];
   }
 
+  function findNonOverlappingPosition(radius, placedDiscs) {
+    const padding = radius + 26;
+    const maxX = boardRect.width - padding;
+    const maxY = boardRect.height - padding - 70;
+    const minX = padding;
+    const minY = padding;
+    const gap = 20;
+
+    for (let attempt = 0; attempt < 300; attempt++) {
+      const x = randomBetween(minX, maxX);
+      const y = randomBetween(minY, maxY);
+      let overlaps = false;
+
+      for (const other of placedDiscs) {
+        const dx = x - other.x;
+        const dy = y - other.y;
+        const minDist = radius + other.radius + gap;
+        if (Math.hypot(dx, dy) < minDist) {
+          overlaps = true;
+          break;
+        }
+      }
+
+      if (!overlaps) return { x, y };
+    }
+
+    const cols = Math.max(2, Math.ceil(Math.sqrt(placedDiscs.length + 1)));
+    const rows = Math.max(2, Math.ceil((placedDiscs.length + 1) / cols));
+    const cellW = boardRect.width / (cols + 1);
+    const cellH = (boardRect.height - 90) / (rows + 1);
+    const slot = placedDiscs.length;
+    const col = slot % cols;
+    const row = Math.floor(slot / cols);
+    return {
+      x: clamp(cellW * (col + 1.2), minX, maxX),
+      y: clamp(cellH * (row + 1.2), minY, maxY)
+    };
+  }
+
   function makeDisc(index, total) {
     const baseSize = Math.min(boardRect.width, boardRect.height) * 0.18;
     const radius = clamp(baseSize - total * 2 + index * 1.5, 44, 110);
-    const padding = radius + 26;
-
-    const x = randomBetween(padding, boardRect.width - padding);
-    const y = randomBetween(padding, boardRect.height - padding - 70);
+    const { x, y } = findNonOverlappingPosition(radius, discs.filter(d => !d.removed));
     const [c1, c2] = DISC_COLORS[index % DISC_COLORS.length];
 
     const el = document.createElement('button');
@@ -465,7 +501,7 @@
       radius,
       baseScale: randomBetween(0.72, 1.02),
       amplitude: randomBetween(0.18, 0.28),
-      speed: randomBetween(0.0045, 0.0085) + level * 0.00045,
+      speed: randomBetween(0.0022, 0.0042) + level * 0.0002,
       phase: Math.random() * Math.PI * 2,
       currentScale: 1,
       removed: false,
